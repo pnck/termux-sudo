@@ -21,12 +21,13 @@ chmod 700 /data/data/com.termux/files/usr/bin/sudo
 **Features**
 
 - Sets up its environment automatically on first run, no need to do anything but use it
-- Creates a root folder ```.suroot``` in the Termux home folder with proper root permissions and ownership
+- Takes totally zero side effect on your /system and / partition
+- Creates a root folder up of the Termux home folder with proper root permissions and ownership
 - Creates ```.bashrc``` file in root folder with proper PATH and LD_LIBRARY_PATH variables set so all binaries function correctly
-- Bash prompt PS1 variable is also set so you don't have ```bash-4.4#``` as prompt just ```#```
+- Bash prompt PS1 variable is also set so you don't have ```bash-4.4#``` as prompt but a better one instead
 - Automatically creates ```.bash_history``` in root folder when you drop to a root shell so root shell history is preserved
 - Can be used like ordinary sudo (but only as root, no other user)
-- Can drop to root shell ```sudo su [-]```
+- Can drop to root shell ```sudo su```
 - Runs built in Termux binaries and exteral binaries with optional arguments as root in current directory
 - Generates output in shell currently using
 - Can be used in other bash scripts
@@ -35,11 +36,11 @@ chmod 700 /data/data/com.termux/files/usr/bin/sudo
 ```
 Usage:
 
-sudo su [-]  
-  Drop to root shell
-
 sudo <command> [<args>]  
   Run command as root with optional arguments
+
+sudo su | -i | --login
+  Drop to root shell
 ```
 
 **This was inspired by the following:**
