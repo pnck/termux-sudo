@@ -15,21 +15,24 @@ color() {
 
 show_usage() {
 	echo -e "\n`color 3 Usage:`\n"
-	echo 'sudo su [-]'
-	echo -e "  `color 2 Drop to root shell`\n"
 	echo 'sudo <command> [<args>]'
 	echo -e "  `color 2 Run command as root with optional arguments`\n"
+	echo 'sudo su | -i | --login'
+	echo -e "  `color 2 Drop to root shell`\n"
 	exit
 }
 
+SBIN=/sbin
 SYSBIN=/system/bin
 SYSXBIN=/system/xbin
+VNDRBIN=/vendor/bin
+SLESSUBIN=/su/bin
 BB=$SYSXBIN/busybox
 PRE=/data/data/com.termux/files
-ROOT_HOME=$PRE/home/.suroot
+ROOT_HOME=$PRE/root # why we have to hide it?
 BINPRE=$PRE/usr/bin
 LDLP="export LD_LIBRARY_PATH=$PRE/usr/lib"
-CMDLINE="PATH=$PATH:$SYSXBIN:$SYSBIN;$LDLP;HOME=$ROOT_HOME;cd $PWD"
+CMDLINE="PATH=$ROOT_HOME/bin:$PATH:$SBIN:$VNDRBIN:$SYSXBIN:$SYSBIN:$SLESSUBIN;$LDLP;HOME=$ROOT_HOME;cd $PWD"
 
 if [ -x $SYSXBIN/su ]; then
 	SU=$SYSXBIN/su
@@ -43,40 +46,46 @@ else
 	exit
 fi
 
-if [ ! -d $ROOT_HOME ]; then
-	if [ -x $BB ] && [ $($BB --list | grep -w mount) == "mount" ]; then
-		MOUNTEX="$BB mount"
-	elif [ -x $SYSBIN/mount ]; then
-		MOUNTEX="$SYSBIN/mount"
-	else
-		echo -e "\nCannot find `color 1 mount` executable"
-		echo -e "`color 2 Unable to setup sudo`\n"
-		exit
-	fi
-	MOUNT_RW="$MOUNTEX -o rw,remount,rw /system"
-	MOUNT_RO="$MOUNTEX -o ro,remount,ro /system"
-	$SU -c "$MOUNT_RW"
-	$SU -c "mkdir $ROOT_HOME"
-	$SU -c "chmod 700 $ROOT_HOME"
-	BASHRC="'PS1=\"#\"\nexport TERM=$TERM\n$LDLP\nexport PATH=$PATH:$SYSXBIN:$SYSBIN'"
-	$SU -c "echo -e $BASHRC > $ROOT_HOME/.bashrc"
-	$SU -c "chmod 700 $ROOT_HOME/.bashrc"
-	$SU -c "$MOUNT_RO"
-fi
-
 ARGS=$(printf '%q ' "$@")
 
 if [ -z "$*" ]; then
 	show_usage
-elif [ $1 == "su" ]; then
-	CMDLINE="$CMDLINE;$BINPRE/bash"
-elif [ -x "$BINPRE/$1" ]; then
-	CMDLINE="$CMDLINE;$BINPRE/$ARGS"
-elif [ -x $SYSBIN/$1 ] || [ -x $SYSXBIN/$1 ] || [ -x $1 ]; then
-	CMDLINE="$CMDLINE;$ARGS"
 else
-	echo -e "\nCommand `color 1 $1` not found"
-	echo -e "`color 2 Check your spelling and try again`\n"
+	if [ ! -d $ROOT_HOME ]; then
+		if [ -x $SYSBIN/setenforce -a -x $SYSBIN/getenforce ]; then
+			ENFORCE=`$SYSBIN/getenforce`
+			$SU -c "$SYSBIN/setenforce 0"
+		fi
+		$SU -c "mkdir $ROOT_HOME"
+		$SU -c "chmod 700 $ROOT_HOME"
+		$SU -c "mkdir $ROOT_HOME/bin" # i put my rootkit here
+		BASHRC="export TERM=$TERM\n$LDLP\nexport PATH=$ROOT_HOME/bin:$PATH:$SYSXBIN:$SYSBIN"
+		echo -e $BASHRC > .tmpbashrc
+		if [ -r ~/.bashrc ]; then
+			cat ~/.bashrc >> .tmpbashrc
+		else
+			MYPS1='\[\033[01;34m\][\W]\[\033[00m\]-\$ '
+			echo "PS1='$MYPS1'" >> .tmpbashrc
+		fi
+		$SU -c "mv .tmpbashrc $ROOT_HOME/.bashrc"
+		$SU -c "chown root:root $ROOT_HOME/.bashrc"
+		$SU -c "chmod 700 $ROOT_HOME/.bashrc"
+		if [ -x $SYSBIN/setenforce -a -x $SYSBIN/getenforce ]; then
+			$SU -c "$SYSBIN/setenforce $ENFORCE"
+		fi
+
+	fi
+
+	if [ $1 == "su" -o $1 == "-i" -o $1 == "--login" ]; then
+		CMDLINE="$CMDLINE;$BINPRE/bash"
+	elif [ -x "$BINPRE/$1" ]; then
+		CMDLINE="$CMDLINE;$BINPRE/$ARGS"
+	elif [ -x $SYSBIN/$1 ] || [ -x $SYSXBIN/$1 ] || [ -x $1 ]; then
+		CMDLINE="$CMDLINE;$ARGS"
+	else
+		echo -e "\nCommand `color 1 $1` not found"
+		echo -e "`color 2 Check your spelling and try again`\n"
+	fi
 fi
 
 $SU --preserve-environment -c "$CMDLINE"
