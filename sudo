@@ -31,7 +31,7 @@ BB=$SYSXBIN/busybox
 PRE=/data/data/com.termux/files
 ROOT_HOME=$PRE/root # why we have to hide it?
 BINPRE=$PRE/usr/bin
-LDLP="export LD_LIBRARY_PATH=$PRE/usr/lib"
+LDLP="export LD_LIBRARY_PATH=/system/lib64:/system/lib:$PRE/usr/lib"
 CMDLINE="PATH=$ROOT_HOME/bin:$PATH:$SBIN:$VNDRBIN:$SYSXBIN:$SYSBIN:$SLESSUBIN;$LDLP;HOME=$ROOT_HOME;cd $PWD"
 
 if [ -x $SYSXBIN/su ]; then
